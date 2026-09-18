@@ -6,7 +6,7 @@ Gem::Specification.new do |spec|
   spec.name = 'eui-ruby'
   spec.version = EUI::VERSION
   spec.authors = ['Olivier Bonnaure']
-  spec.email = ['olivier.bonnaure@delupay.com']
+  spec.email = ['olivier@solisoft.net']
 
   spec.summary = 'EUI applications in Ruby: the wire format, the views, and the server that speaks them.'
   spec.description = <<~TEXT
