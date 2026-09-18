@@ -127,4 +127,166 @@ class SessionTest < Minitest::Test
       assert_equal '404', response.code
     end
   end
+
+  # ------------------------------------------------------- what goes wrong
+
+  class Fragile < EUI::Component
+    def mount(params)
+      super
+      @state = 'ok'
+    end
+
+    on('boom') { raise 'the handler fell over' }
+    on('break_the_view') { @state = 'broken' }
+    on('count') { @state = 'counted' }
+
+    def render
+      raise EUI::ViewError, 'a role nobody defined' if @state == 'broken'
+
+      # Two handlers on the root, so a test can aim at one without the
+      # button underneath answering first.
+      column([text(@state), button('go', 'count')],
+             on: { 'click' => 'boom', 'double_click' => 'break_the_view' })
+    end
+  end
+
+  def fragile_app
+    app = EUI::App.new(name: 'Fragile', app_id: 'fragile.test')
+    app.mount('fragile', Fragile)
+    app
+  end
+
+  def connected(port, path = '/_eui/session/fragile')
+    client = TestClient.new(port, path)
+    client.hello
+    client.recv # welcome
+    [client, client.recv] # and the mount
+  end
+
+  def test_a_handler_that_raises_does_not_end_the_session
+    with_app(fragile_app) do |port|
+      client, mount = connected(port)
+      root = mount.body.ops.last[:subtree].nodes.first.id
+
+      client.send_frame(EUI::Proto::Frame.event(
+                          EUI::Proto::EventFrame.new(root, EUI::Proto::EventKind.code('click'), 0, EUI::Proto::Value.null)
+                        ))
+      # The state did not change, so the view did not change, so there is
+      # nothing to send. The session is still up, which is the point.
+      assert_nil client.recv(timeout: 0.4)
+
+      client.send_frame(EUI::Proto::Frame.viewport(EUI::Proto::Viewport.new(500, 400, 100, 1, 1, 100)))
+      assert_nil client.recv(timeout: 0.4), 'a viewport this view ignores costs nothing either'
+
+      client.send_frame(EUI::Proto::Frame.ping('abcdefgh'))
+      assert_equal EUI::Proto::Frame::PONG, client.recv.kind, 'the next frame still works'
+      client.close
+    end
+  end
+
+  def test_a_view_that_cannot_be_encoded_ends_the_session_with_a_reason
+    with_app(fragile_app) do |port|
+      client, mount = connected(port)
+      root = mount.body.ops.last[:subtree].nodes.first.id
+
+      # A view that fails fails the same way on every later render, so a
+      # server that only logged it would leave a window that looks alive
+      # and answers nothing.
+      client.send_frame(EUI::Proto::Frame.event(
+                          EUI::Proto::EventFrame.new(root, EUI::Proto::EventKind.code('double_click'), 0, EUI::Proto::Value.null)
+                        ))
+      error = client.recv
+      assert_equal EUI::Proto::Frame::ERROR, error.kind
+      assert_equal 400, error.body[0]
+      assert_match(/a role nobody defined/, error.body[1])
+      client.close
+    end
+  end
+
+  class Ticker < EUI::Component
+    def mount(params)
+      super
+      @ticks = 0
+    end
+
+    def tick!
+      @ticks += 1
+      refresh!
+    end
+
+    def render = column([text("ticks #{@ticks}")])
+  end
+
+  def test_a_render_can_be_asked_for_from_outside_the_socket
+    seen = Queue.new
+    component_class = Class.new(Ticker) do
+      define_method(:mount) do |params|
+        super(params)
+        seen << self
+      end
+    end
+    app = EUI::App.new(name: 'Ticker', app_id: 'ticker.test')
+    app.mount('ticker', component_class)
+
+    with_app(app) do |port|
+      client = TestClient.new(port, '/_eui/session/ticker')
+      client.hello
+      client.recv
+      client.recv
+
+      component = seen.pop
+      component.tick!
+      batch = client.recv
+      assert_equal [EUI::Proto::Op::SET_TEXT], batch.body.ops.map(&:opcode)
+      assert_equal 'ticks 1', batch.body.ops.first[:text].inline
+      client.close
+    end
+  end
+
+  def test_a_notification_is_an_op_like_any_other
+    seen = Queue.new
+    component_class = Class.new(Ticker) do
+      define_method(:mount) do |params|
+        super(params)
+        seen << self
+      end
+    end
+    app = EUI::App.new(name: 'Ticker', app_id: 'notify.test')
+    app.mount('ticker', component_class)
+
+    with_app(app) do |port|
+      client = TestClient.new(port, '/_eui/session/ticker')
+      client.hello
+      client.recv
+      client.recv
+      seen.pop.notify('Two replies', body: 'in this thread', tag: 'thread-7')
+      batch = client.recv
+      op = batch.body.ops.first
+      assert_equal EUI::Proto::Op::NOTIFY, op.opcode
+      assert_equal 'Two replies', op[:title]
+      assert_equal 'thread-7', op[:tag]
+      client.close
+    end
+  end
+
+  def test_the_viewport_reaches_the_component
+    app = EUI::App.new(name: 'Sizer', app_id: 'sizer.test')
+    app.mount('sizer', Class.new(EUI::Component) do
+      def render = column([text("#{width} x #{height}")])
+    end)
+
+    with_app(app) do |port|
+      client = TestClient.new(port, '/_eui/session/sizer')
+      client.hello(width: 1280, height: 900)
+      client.recv
+      mount = client.recv
+      text = mount.body.ops.last[:subtree].nodes.find { |n| n.text }
+      assert_equal '1280 x 900', text.text.inline, 'the Hello carried it'
+
+      client.send_frame(EUI::Proto::Frame.viewport(EUI::Proto::Viewport.new(640, 480, 100, 0, 1, 100)))
+      batch = client.recv
+      assert_equal '640 x 480', batch.body.ops.first[:text].inline, 'and a resize follows on its own'
+      client.close
+    end
+  end
 end
