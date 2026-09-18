@@ -5,7 +5,7 @@
 # side is written the same way: the point is to compare what it costs to
 # turn the same tree into the same bytes.
 
-ROWS = 500
+ROWS = 10000
 
 def bench_cells(i)
   [
