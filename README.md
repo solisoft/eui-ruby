@@ -176,16 +176,16 @@ ruby -Ilib -Itest -e 'Dir["test/**/*_test.rb"].each { |f| require File.expand_pa
 own §8 example, 150 bytes, byte for byte — and `test/session_test.rb`, which
 runs a real application on a real socket and counts the ops a click costs.
 
-## Against the other four
+## Against the other six
 
-The same application, written five times — in Soli, Ruby, Python, PHP and
-JavaScript, node for node. [`bench/`](bench/) holds all five and the one
-driver that measures them, each phase timed until the server goes quiet. At
-500 rows, one number changed: **9 bytes** out of every one of them, 12 ms in
-Soli, 24 ms here, 9 ms in Node. The bytes being identical is the protocol's
-claim; the rest ranks by JIT, and the memory column ranks what else is in the
-process. [`bench/README.md`](bench/README.md) has the tables, the method and
-the caveats.
+The same application, written seven times — in Soli, Ruby, Python, PHP,
+JavaScript, Go and Rust, node for node. [`bench/`](bench/) holds all seven and
+the one driver that measures them, each phase timed until the server goes
+quiet. At 500 rows, one number changed: **9 bytes** out of every one of them,
+17 ms in Soli, 37 ms here, 10 ms in Node, 2.5 ms in Rust. The bytes being
+identical is the protocol's claim; the rest ranks by runtime, and the memory
+column ranks what else is in the process. [`bench/README.md`](bench/README.md)
+has the tables, the method and the caveats.
 
 ## Licence
 
