@@ -122,7 +122,7 @@ abort 'no Welcome' unless welcome&.kind == EUI::Proto::Frame::WELCOME
 
 mount = collect(client, quiet: options[:quiet])
 mount_ms = (now - started) * 1000 - (options[:quiet] * 1000)
-rss_mounted = rss_kb(pids)
+rss_mounted = rss_kb((pids + pids_on(options[:port])).uniq)
 
 # The click targets: whichever nodes carry the handlers the tree named
 # `tick` and `sort`. Both servers name them the same, because both views do.
@@ -165,6 +165,9 @@ end
 tick = measure(client, targets['tick'], options[:ticks], 0.25)
 sort = measure(client, targets['sort'], options[:sorts], options[:quiet])
 
+# A server that forks per connection has its work in a child that did not
+# exist when this started, so the set is taken again rather than trusted.
+pids = (pids + pids_on(options[:port])).uniq
 cpu_used = cpu_seconds(pids) - cpu_start
 rss_after = rss_kb(pids)
 client.close
