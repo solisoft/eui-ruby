@@ -65,11 +65,25 @@ and you have the whole document.
 - **`c`** children, **`t`** text, **`p`** props, **`on`** handlers,
   **`key`** identity for reconciliation.
 
+**[eui.solisoft.net/components](https://eui.solisoft.net/components) is the
+reference for all of it** — every node key, all seventeen kinds, every style
+key and all thirty-three colour roles, the event names, and the catalogue of
+composed widgets, each one shown with the hash it returns. It is written
+against Soli, and the vocabulary is the protocol's, so a style hash or a node
+on that page is the same style hash and the same node here. The rest of the
+site is worth the visit too: [the running demo](https://eui.solisoft.net/demo),
+[the controls](https://eui.solisoft.net/controls) every widget is built from,
+and [what is not there yet](https://eui.solisoft.net/gaps).
+
 Colour is a **role** — `surface.raised`, `text.muted`, `danger.base` — never
 a literal. The client resolves it against the viewer's theme, so the page is
 right in dark mode *without this server ever learning which mode they are
 in*. Sizes are scale indices, by index or by name: `size: "lg"`, `gap: 4`,
 `radius: "md"`.
+
+What this gem ships is the primitives plus a few composed widgets — `button`,
+`card`, `field`, `divider`, `spacer`. Anything else in the catalogue is a
+function that returns a hash, so it ports to Ruby by writing the same hash.
 
 ```ruby
 column(gap: 4, pad: 6, bg: "surface.base") do
