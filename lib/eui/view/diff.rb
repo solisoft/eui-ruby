@@ -117,58 +117,95 @@ module EUI
 
       # Identity is the key, so a row that moved is a row that moved rather
       # than every row below it having changed.
+      #
+      # The obvious way to write this is quadratic — scan the old children
+      # for each new one — and a ten-thousand-row sort then costs fifty
+      # million comparisons before a single byte is sent. What makes it
+      # `n log n` instead is the observation that a `MoveChild` only ever
+      # pulls a row *forward*: everything before `index` is already final,
+      # and the rest keep their relative order. So a row's current position
+      # is `index` plus however many rows ahead of it are still waiting,
+      # and a Fenwick tree answers that in fourteen steps rather than ten
+      # thousand.
       def keyed_children(old, new)
         parent = new.id
-        cur = old.children.dup
         wanted = new.children.map(&:key)
+        wanted_set = {}
+        wanted.each { |k| wanted_set[k] = true }
 
-        # What is not in the new list goes first, in contiguous runs, so a
-        # section that closed costs one op rather than twenty.
+        cur = old.children.dup
         i = 0
         while i < cur.length
-          if wanted.include?(cur[i].key)
+          if wanted_set[cur[i].key]
             i += 1
             next
           end
           run = 1
-          run += 1 while i + run < cur.length && !wanted.include?(cur[i + run].key)
+          run += 1 while i + run < cur.length && !wanted_set[cur[i + run].key]
           @ops << Proto::Op.remove_child(parent, i, run)
           cur.slice!(i, run)
         end
 
+        at = {}
+        cur.each_with_index { |child, slot| at[child.key] = slot }
+        waiting = Fenwick.new(cur.length)
+
         new.children.each_with_index do |after, index|
-          at = cur[index]
-          if at && at.key == after.key
-            reconcile_kept(at, after, parent, index)
+          slot = at[after.key]
+          if slot.nil?
+            @encoder.assign_ids(after)
+            @ops << Proto::Op.insert_child(parent, index, @encoder.subtree_of(after))
             next
           end
 
-          from = cur.index { |c| c.key == after.key }
-          if from
-            @ops << Proto::Op.move_child(parent, from, index)
-            moved = cur.delete_at(from)
-            cur.insert(index, moved)
-            reconcile_kept(moved, after, parent, index)
-          else
-            @encoder.assign_ids(after)
-            @ops << Proto::Op.insert_child(parent, index, @encoder.subtree_of(after))
-            cur.insert(index, after)
+          from = index + waiting.count_before(slot)
+          @ops << Proto::Op.move_child(parent, from, index) if from != index
+          waiting.place(slot)
+          reconcile_kept(cur[slot], after)
+        end
+      end
+
+      # How many of the rows still waiting sit ahead of this one. A plain
+      # array of counts would answer it in a scan; this answers it, and
+      # takes a row out of the running, in log n.
+      class Fenwick
+        def initialize(size)
+          @size = size
+          @tree = Array.new(size + 1, 0)
+          (1..size).each do |i|
+            @tree[i] += 1
+            parent = i + (i & -i)
+            @tree[parent] += @tree[i] if parent <= size
           end
         end
 
-        return unless cur.length > new.children.length
+        # Rows still waiting at slots `0...slot`.
+        def count_before(slot)
+          total = 0
+          i = slot
+          while i.positive?
+            total += @tree[i]
+            i -= i & -i
+          end
+          total
+        end
 
-        @ops << Proto::Op.remove_child(parent, new.children.length, cur.length - new.children.length)
+        def place(slot)
+          i = slot + 1
+          while i <= @size
+            @tree[i] -= 1
+            i += i & -i
+          end
+        end
       end
 
-      def reconcile_kept(before, after, parent, index)
+      def reconcile_kept(before, after)
         if before.kind == after.kind
           node(before, after)
         else
           @encoder.assign_ids(after)
           @ops << Proto::Op.replace(before.id, @encoder.subtree_of(after))
         end
-        [parent, index]
       end
     end
   end

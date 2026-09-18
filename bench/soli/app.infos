@@ -1,0 +1,3 @@
+name = "eui-bench"
+start_script = "soli serve . --port $PORT"
+health_check = "/health"

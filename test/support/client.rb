@@ -55,17 +55,32 @@ class TestClient
     self
   end
 
-  # The next frame, or nil if the server said nothing in time.
+  # The next frame, or nil once the server has gone quiet or gone away.
+  # A Ping is answered here rather than surfaced: a client that does not
+  # answer one is a client the server hangs up on after two.
   def recv(timeout: 3)
-    return nil unless IO.select([@socket], nil, nil, timeout)
+    loop do
+      return nil unless IO.select([@socket], nil, nil, timeout)
 
-    b0 = read(1)&.unpack1('C')
-    return nil if b0.nil?
+      head = read(2)
+      return nil if head.nil?
 
-    len = read(1).unpack1('C') & 0x7F
-    len = read(2).unpack1('n') if len == 126
-    len = read(8).unpack1('Q>') if len == 127
-    EUI::Proto::Frame.decode(len.zero? ? '' : read(len))
+      len = head.getbyte(1) & 0x7F
+      if len == 126
+        more = read(2) or return nil
+        len = more.unpack1('n')
+      elsif len == 127
+        more = read(8) or return nil
+        len = more.unpack1('Q>')
+      end
+      payload = len.zero? ? '' : read(len)
+      return nil if payload.nil?
+
+      frame = EUI::Proto::Frame.decode(payload)
+      next send_frame(EUI::Proto::Frame.pong(frame.body)) if frame.kind == EUI::Proto::Frame::PING
+
+      return frame
+    end
   end
 
   # Every frame until one of `kind` arrives.
@@ -90,7 +105,12 @@ class TestClient
 
   def read(count)
     data = +''.b
-    data << @socket.read(count - data.bytesize) while data.bytesize < count
+    while data.bytesize < count
+      chunk = @socket.read(count - data.bytesize)
+      return nil if chunk.nil? || chunk.empty?
+
+      data << chunk
+    end
     data
   end
 end

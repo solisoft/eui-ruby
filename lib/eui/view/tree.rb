@@ -36,6 +36,7 @@ module EUI
         @colors = {}
         @chunks = {}
         @fonts = {}
+        @style_cache = {}
         @pending = []
         @previous = nil
         @next_id = 1
@@ -187,7 +188,7 @@ module EUI
 
         kind_name = fetch(view, 'k') || 'box'
         kind = Proto::NodeKind.code(kind_name)
-        style_id = style(@compiler.record(fetch(view, 's')))
+        style_id = style_for(fetch(view, 's'))
 
         key = fetch(view, 'key')
         key = key.to_s if key
@@ -239,6 +240,20 @@ module EUI
       end
 
       private
+
+      # Two style hashes with the same contents are the same style, and a
+      # table of ten thousand rows has three of them. Ruby hashes a small
+      # hash by its contents, so this is one lookup instead of compiling and
+      # encoding a 64-byte record per node — which is most of what a render
+      # of fifty thousand nodes used to cost.
+      def style_for(style)
+        return 0 if style.nil? || style.empty?
+
+        cached = @style_cache[style]
+        return cached if cached
+
+        @style_cache[style.dup.freeze] = style(@compiler.record(style))
+      end
 
       def fetch(hash, key)
         return hash[key] if hash.key?(key)

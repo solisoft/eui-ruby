@@ -162,6 +162,16 @@ ruby -Ilib -Itest -e 'Dir["test/**/*_test.rb"].each { |f| require File.expand_pa
 own §8 example, 150 bytes, byte for byte — and `test/session_test.rb`, which
 runs a real application on a real socket and counts the ops a click costs.
 
+## Against Soli
+
+The same application, written twice — [`bench/`](bench/) has both, and a
+driver that measures each until the server goes quiet. At 500 rows, one
+number changed: **9 bytes** either way, 12 ms in Soli against 23 ms here,
+and a quarter of the resident memory. The bytes being identical is the
+protocol's claim; the rest is an interpreter against compiled Rust, and a
+library against a whole application server. [`bench/README.md`](bench/README.md)
+has the numbers, the method and the caveats.
+
 ## Licence
 
 MIT.

@@ -20,6 +20,12 @@ reference client draw it.
   its content.
 - `EUI::Manifest` — the signed `EUIM` record, with an Ed25519 publisher key
   kept on disk.
+- `bench/` — the same application in Ruby and in Soli, and a driver that
+  measures both until the server goes quiet. Writing it found two of this
+  gem's own faults: a quadratic keyed reconciliation (a 10 000-row sort took
+  17.7 s; a Fenwick tree made it 0.8 s) and a style record compiled once per
+  node rather than once per distinct style (a 50 000-node render went from
+  2.9 s to 0.6 s).
 
 Not yet: local handlers (`spec/07` bytecode), file transfers (`spec/01`
 §6), session resume, and the windowed `list`'s `window` event.
