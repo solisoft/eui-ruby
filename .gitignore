@@ -1,0 +1,7 @@
+/pkg/
+/tmp/
+*.gem
+.DS_Store
+# A publisher key: whoever holds it can publish as this application.
+*.pem
+config/eui_publisher.*
