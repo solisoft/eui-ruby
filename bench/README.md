@@ -41,25 +41,25 @@ the run, so the driver's cost is not charged to them.
 
 | | Soli | Ruby | Python | PHP | Node | Go | Rust |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Mount, fresh session | 72 ms | 100 ms | 76 ms | 91 ms | 89 ms | **45 ms** | 62 ms |
-| Tick — one number | 17.0 ms | 36.9 ms | 35.7 ms | 32.2 ms | 9.9 ms | 6.9 ms | **2.5 ms** |
-| Tick, p95 | 27.1 ms | 76.4 ms | 76.3 ms | 47.0 ms | 17.0 ms | 9.8 ms | **3.9 ms** |
-| Sort — 500 rows reversed | 24 ms | 32 ms | 31 ms | 38 ms | 10 ms | 14 ms | **8 ms** |
-| Resident memory, idle | 43.2 MB | 23.6 MB | 22.1 MB | 27.6 MB | 58.7 MB | 8.0 MB | **2.5 MB** |
-| Resident memory, after | 52.5 MB | 33.5 MB | 26.1 MB | 46.1 MB | 121.5 MB | 16.2 MB | **5.1 MB** |
-| CPU for 25 events | 0.48 s | 0.97 s | 0.95 s | 0.89 s | 0.50 s | 0.24 s | **0.07 s** |
+| Mount, fresh session | 44 ms | 72 ms | 79 ms | 92 ms | 81 ms | **42 ms** | 68 ms |
+| Tick — one number | 13.8 ms | 22.9 ms | 22.5 ms | 26.4 ms | 8.3 ms | 4.4 ms | **2.4 ms** |
+| Tick, p95 | 17.3 ms | 32.0 ms | 34.5 ms | 34.1 ms | 12.0 ms | 7.2 ms | **3.6 ms** |
+| Sort — 500 rows reversed | 17 ms | 36 ms | 27 ms | 30 ms | 9 ms | 9 ms | **5 ms** |
+| Resident memory, idle | 109.2 MB | 23.5 MB | 22.1 MB | 29.6 MB | 73.4 MB | 8.4 MB | **2.5 MB** |
+| Resident memory, after | 100.6 MB | 33.4 MB | 26.1 MB | 49.3 MB | 124.4 MB | 15.8 MB | **5.2 MB** |
+| CPU for 25 events | 0.35 s | 0.67 s | 0.65 s | 0.72 s | 0.45 s | 0.18 s | **0.06 s** |
 | On the wire | 39.6 KB mount · **9 B** tick · **2.8 KB** sort — identical | | | | | | |
 
 ## 10 000 rows — 50 011 nodes
 
 | | Soli | Ruby | Python | PHP | Node | Go | Rust |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Mount, fresh session | 1 553 ms | 2 162 ms | 1 931 ms | 2 117 ms | 1 164 ms | 1 209 ms | **869 ms** |
-| Tick — one number | 356 ms | 661 ms | 649 ms | 671 ms | 132 ms | 97 ms | **55 ms** |
-| Sort — 10 000 reversed | 421 ms | 812 ms | 751 ms | 927 ms | 197 ms | 180 ms | **164 ms** |
-| Resident memory, idle | 102.5 MB | 23.6 MB | 22.1 MB | 28.2 MB | 61.1 MB | 7.9 MB | **2.5 MB** |
-| Resident memory, after | 223.0 MB | 125.7 MB | 94.2 MB | 151.8 MB | 250.7 MB | 90.2 MB | **54.3 MB** |
-| CPU for 25 events | 9.80 s | 18.48 s | 17.85 s | 19.09 s | 5.65 s | 4.13 s | **1.55 s** |
+| Mount, fresh session | 1 202 ms | 1 421 ms | 1 293 ms | 1 572 ms | 896 ms | 851 ms | **828 ms** |
+| Tick — one number | 223 ms | 536 ms | 550 ms | 552 ms | 116 ms | 88 ms | **57 ms** |
+| Sort — 10 000 reversed | 243 ms | 587 ms | 666 ms | 723 ms | 179 ms | 168 ms | **114 ms** |
+| Resident memory, idle | 96.2 MB | 23.5 MB | 22.1 MB | 29.5 MB | 83.6 MB | 9.0 MB | **2.5 MB** |
+| Resident memory, after | 228.6 MB | 125.9 MB | 94.2 MB | 153.7 MB | 267.8 MB | 93.6 MB | **56.5 MB** |
+| CPU for 25 events | 6.29 s | 14.38 s | 14.65 s | 15.36 s | 5.09 s | 3.72 s | **1.46 s** |
 | On the wire | 885 / 846 KB mount · **9 B** tick · **58.5 KB** sort, 10 000 ops | | | | | | |
 
 ## The same JavaScript on two runtimes
@@ -69,15 +69,15 @@ runners. What changes is the bill:
 
 | 10 000 rows | mount | tick | sort | memory, idle → after | CPU, 25 events |
 |---|---:|---:|---:|---:|---:|
-| Node 26 | 1 164 ms | 132 ms | 197 ms | 61 → 251 MB | 5.65 s |
-| Bun 1.4 | 1 177 ms | 192 ms | 297 ms | **33 → 183 MB** | 7.90 s |
+| Node 26 | 896 ms | 116 ms | 179 ms | 84 → 268 MB | 5.09 s |
+| Bun 1.4 | 977 ms | 173 ms | 218 ms | **33 → 138 MB** | 7.08 s |
 
 | 500 rows | mount | tick | sort | memory, idle → after | CPU, 25 events |
 |---|---:|---:|---:|---:|---:|
-| Node 26 | 89 ms | 9.9 ms | 10 ms | 59 → 122 MB | 0.50 s |
-| Bun 1.4 | 66 ms | 10.1 ms | 14 ms | **33 → 58 MB** | 0.65 s |
+| Node 26 | 81 ms | 8.3 ms | 9 ms | 73 → 124 MB | 0.45 s |
+| Bun 1.4 | 59 ms | 9.3 ms | 12 ms | **33 → 61 MB** | 0.58 s |
 
-V8 is quicker on this work by a third to a half; JavaScriptCore under Bun
+V8 is quicker on this work by a tenth to a half; JavaScriptCore under Bun
 holds about half the memory. Neither changes a byte on the wire.
 
 ## What it says
@@ -90,26 +90,36 @@ writes the server. The one difference, 885 KB against 846 KB at the mount, is
 Soli interning a row's cell strings the other six carry inline: the same
 tree, spelled two ways.
 
-**The spread is about 12× at the tick, and it is a runtime ranking.** Rust and
+**The spread is about 11× at the tick, and it is a runtime ranking.** Rust and
 Go compile to machine code and land where you would expect; V8 is within a
 factor of two of Go; Soli's own interpreter is next; CRuby, CPython and PHP
-land within a fifth of one another, about 7× behind Rust. Nothing here is a
+land within a sixth of one another, about 10× behind Rust. Nothing here is a
 verdict on the *protocol* — every one of these servers is doing the same
 work, which is why the wire is identical.
 
 **Memory is not a language ranking, it is a "what else is in the process"
 ranking.** Soli's idle is a whole application server: worker pool, HTTP
 stack, database driver, LiveView registry, a bytecode compiler for local
-handlers. Node's is V8. Python, Ruby and PHP idle in the twenties because
+handlers — and it moves by sixty megabytes between runs as that pool warms,
+which is why its idle at 500 rows reads *higher* than its figure after the
+run. Node's is V8. Python, Ruby and PHP idle in the twenties because
 each of those libraries is one thing. Rust's 2.5 MB and Go's 8 MB are what a
 process is when nothing else is in it. What grows during a run is the tree
 itself, and there the shapes differ: Rust holds fifty thousand nodes in
 54 MB, Node in 251 MB.
 
-**At the scale an application really is, all seven are inside a frame.** 500
-rows, one number changed: 2.5 to 37 ms, against a 60 Hz budget of 16 ms — and
-the render is not what the viewer waits for anyway, because the client
-already drew the last one.
+**At the scale an application really is, all seven are inside a frame or
+near it.** 500 rows, one number changed: 2.4 to 26 ms, against a 60 Hz budget
+of 16 ms — and the render is not what the viewer waits for anyway, because the
+client already drew the last one.
+
+**Run-to-run spread is real, and it is not even across the seven.** These are
+single runs of a few dozen events on a machine that is not otherwise idle. An
+earlier pass of this same benchmark, taken while a compile was finishing, put
+Ruby's 500-row tick at 36.9 ms against the 22.9 here and Soli's at 17.0
+against 13.8 — while Rust moved by six hundredths of a millisecond. The
+compiled servers barely notice a busy machine; the allocating ones notice it a
+great deal. Read the ranking, not the third digit.
 
 ## What this is not evidence of
 
@@ -132,3 +142,13 @@ compiled once per node instead of once per distinct style. A Fenwick tree and
 a cache took it to 789 ms, and the other five implementations were written
 with both from the start. A benchmark between languages measures the
 implementations first.
+
+Instrumenting Soli the same way found the same shape of thing again.
+`EUI_TRACE=1` splits its tick into the view, which its interpreter runs, and
+the convert-diff-encode, which is Rust: 7.6 ms and 3.4 ms at 500 rows. Half of
+the first was rebuilding two and a half thousand style hashes that were all
+identical — hoisting them takes the tick to 6.2 ms with the output unchanged
+to the byte — and the Rust half was paying a BLAKE3 per node to look up a
+style cache that a pointer could have answered. The bench app is deliberately
+*not* hoisted: the seven have to stay node for node identical or the
+comparison stops meaning anything.
