@@ -15,6 +15,7 @@ the same, and — as the byte counts below show — the tree is the same.
 | Python | `../../eui-python/bench/bench_app.py` | `PORT=5103 ROWS=10000 python3 bench/bench_app.py` |
 | PHP | `../../eui-php/bench/bench_app.php` | `PORT=5104 ROWS=10000 php bench/bench_app.php` |
 | Node | `../../eui-node/bench/bench-app.js` | `PORT=5105 ROWS=10000 node bench/bench-app.js` |
+| Bun | the same file | `PORT=5106 ROWS=10000 bun bench/bench-app.js` |
 
 One driver measures all five, because a driver that spoke each server's
 language would be measuring itself:
@@ -56,6 +57,24 @@ the driver's cost is not charged to them.
 | Resident memory, after | 177.3 MB | 124.7 MB | **91.3 MB** | 151.4 MB | 247.5 MB |
 | CPU for 20 events | 7.16 s | 12.94 s | 13.95 s | 13.79 s | **4.41 s** |
 | On the wire | 885 / 846 KB mount · **9 B** tick · **58.5 KB** sort, 10 000 ops | | | | |
+
+## The same JavaScript on two runtimes
+
+`eui-node` runs unchanged on Bun, and the same 98 tests pass under both
+runners. What changes is the bill:
+
+| 10 000 rows | mount | tick | sort | memory, idle → after | CPU, 20 events |
+|---|---:|---:|---:|---:|---:|
+| Node 26 | 1 085 ms | 152 ms | 203 ms | 60 → 245 MB | 4.96 s |
+| Bun 1.4 | 1 189 ms | 178 ms | 283 ms | **34 → 143 MB** | 6.40 s |
+
+| 500 rows | mount | tick | sort | memory, idle → after | CPU, 40 events |
+|---|---:|---:|---:|---:|---:|
+| Node 26 | 67 ms | 8.6 ms | 9 ms | 60 → 125 MB | 0.66 s |
+| Bun 1.4 | 64 ms | 10.0 ms | 12 ms | **30 → 67 MB** | 0.88 s |
+
+V8 is quicker on this work by a fifth to a third; JavaScriptCore under Bun
+holds about half the memory. Neither changes a byte on the wire.
 
 ## What it says
 
