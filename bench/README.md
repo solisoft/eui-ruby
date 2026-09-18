@@ -26,14 +26,16 @@ language would be measuring itself:
 ruby bench/bench.rb --port 5102 --name soli
 ```
 
-Every phase is measured **until the server goes quiet**, because the seven
-deliver a large tree differently: six send one `Mount` of fifty thousand
-nodes; Soli sends a `Mount` of the root and grafts the rows on with
-`InsertChild` across twenty-one batches. Both are conforming, and counting
-only the first frame would flatter one of them. Memory is `VmRSS` for every
-process listening on the port **and its children**, because PHP forks one per
-connection; CPU is those processes' own user+system time across the run, so
-the driver's cost is not charged to them.
+Every phase is measured **until the server goes quiet** — a one-second silent
+window — because the seven deliver a large tree differently: six send one
+`Mount` of fifty thousand nodes; Soli sends a `Mount` of the root and grafts
+the rows on with `InsertChild` across twenty-one batches. Both are conforming,
+and counting only the first frame would flatter one of them. The latency
+figures are the first frame back, median over the driver's defaults of **20
+ticks and 5 sorts**; the CPU column covers those 25 events. Memory is `VmRSS`
+for every process listening on the port **and its children**, because PHP
+forks one per connection; CPU is those processes' own user+system time across
+the run, so the driver's cost is not charged to them.
 
 ## 500 rows — 2 511 nodes, which is what an application looks like
 
@@ -45,7 +47,7 @@ the driver's cost is not charged to them.
 | Sort — 500 rows reversed | 24 ms | 32 ms | 31 ms | 38 ms | 10 ms | 14 ms | **8 ms** |
 | Resident memory, idle | 43.2 MB | 23.6 MB | 22.1 MB | 27.6 MB | 58.7 MB | 8.0 MB | **2.5 MB** |
 | Resident memory, after | 52.5 MB | 33.5 MB | 26.1 MB | 46.1 MB | 121.5 MB | 16.2 MB | **5.1 MB** |
-| CPU for 40 events | 0.48 s | 0.97 s | 0.95 s | 0.89 s | 0.50 s | 0.24 s | **0.07 s** |
+| CPU for 25 events | 0.48 s | 0.97 s | 0.95 s | 0.89 s | 0.50 s | 0.24 s | **0.07 s** |
 | On the wire | 39.6 KB mount · **9 B** tick · **2.8 KB** sort — identical | | | | | | |
 
 ## 10 000 rows — 50 011 nodes
@@ -57,7 +59,7 @@ the driver's cost is not charged to them.
 | Sort — 10 000 reversed | 421 ms | 812 ms | 751 ms | 927 ms | 197 ms | 180 ms | **164 ms** |
 | Resident memory, idle | 102.5 MB | 23.6 MB | 22.1 MB | 28.2 MB | 61.1 MB | 7.9 MB | **2.5 MB** |
 | Resident memory, after | 223.0 MB | 125.7 MB | 94.2 MB | 151.8 MB | 250.7 MB | 90.2 MB | **54.3 MB** |
-| CPU for 20 events | 9.80 s | 18.48 s | 17.85 s | 19.09 s | 5.65 s | 4.13 s | **1.55 s** |
+| CPU for 25 events | 9.80 s | 18.48 s | 17.85 s | 19.09 s | 5.65 s | 4.13 s | **1.55 s** |
 | On the wire | 885 / 846 KB mount · **9 B** tick · **58.5 KB** sort, 10 000 ops | | | | | | |
 
 ## The same JavaScript on two runtimes
@@ -65,12 +67,12 @@ the driver's cost is not charged to them.
 `eui-node` runs unchanged on Bun, and the same 98 tests pass under both
 runners. What changes is the bill:
 
-| 10 000 rows | mount | tick | sort | memory, idle → after | CPU, 20 events |
+| 10 000 rows | mount | tick | sort | memory, idle → after | CPU, 25 events |
 |---|---:|---:|---:|---:|---:|
 | Node 26 | 1 164 ms | 132 ms | 197 ms | 61 → 251 MB | 5.65 s |
 | Bun 1.4 | 1 177 ms | 192 ms | 297 ms | **33 → 183 MB** | 7.90 s |
 
-| 500 rows | mount | tick | sort | memory, idle → after | CPU, 40 events |
+| 500 rows | mount | tick | sort | memory, idle → after | CPU, 25 events |
 |---|---:|---:|---:|---:|---:|
 | Node 26 | 89 ms | 9.9 ms | 10 ms | 59 → 122 MB | 0.50 s |
 | Bun 1.4 | 66 ms | 10.1 ms | 14 ms | **33 → 58 MB** | 0.65 s |
