@@ -79,5 +79,12 @@ module EUI
     def run(host: '127.0.0.1', port: 5012, tls: nil)
       Server.new(self, host: host, port: port, tls: tls, logger: @logger).start
     end
+
+    # One window of `component`, on this machine, with no server at all:
+    # starts `eui --pipe` and speaks to it over its standard input and output
+    # (`spec/01-transport.md` §7). Returns when the window closes.
+    def run_pipe(component = nil, eui: ENV.fetch('EUI', 'eui'), title: @name, allow: [])
+      Pipe.run(self, component: component, eui: eui, title: title, allow: allow, logger: @logger)
+    end
   end
 end

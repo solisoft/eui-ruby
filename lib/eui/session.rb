@@ -28,8 +28,12 @@ module EUI
 
     attr_reader :id, :component, :viewport, :granted, :protocol
 
-    def initialize(socket, component_class:, app:, logger: nil)
+    # `pipe: true` is a session over an application's own pipe to `eui
+    # --pipe` (01 §7): it answers `Fetch` with the asset in the session, and
+    # sends no `Ping`, since a pipe has no idle timer to keep open.
+    def initialize(socket, component_class:, app:, logger: nil, pipe: false)
       @ws = socket
+      @pipe = pipe
       @component_class = component_class
       @app = app
       @logger = logger
@@ -114,6 +118,11 @@ module EUI
         fail_session(400, 'the first frame is a Hello')
         return nil
       end
+      # 01 §7.1: there is no session on a pipe to come back to.
+      if @pipe && frame.body.resume
+        fail_session(400, 'a pipe session resumes nothing')
+        return nil
+      end
       frame.body
     rescue DecodeError => e
       fail_session(400, e.message)
@@ -143,7 +152,7 @@ module EUI
     def pump
       unanswered = 0
       loop do
-        item = @inbox.pop(timeout: IDLE_PING)
+        item = @inbox.pop(timeout: @pipe ? nil : IDLE_PING)
         if item.nil?
           unanswered += 1
           return if unanswered > MAX_UNANSWERED_PINGS
@@ -169,7 +178,7 @@ module EUI
     end
 
     def handle(bytes)
-      frame = Proto::Frame.decode(bytes)
+      frame = Proto::Frame.decode(bytes, pipe: @pipe)
       trace { "frame kind 0x#{frame.kind.to_s(16)}" }
       case frame.kind
       when Proto::Frame::EVENT then dispatch(frame.body)
@@ -190,6 +199,7 @@ module EUI
         return false
       when Proto::Frame::UPLOAD, Proto::Frame::BLOB
         log('file transfers are not implemented yet; the chunk was dropped')
+      when Proto::Frame::FETCH then serve_asset(*frame.body)
       else
         fail_session(400, 'that frame is the server\'s to send')
         return false
@@ -245,6 +255,27 @@ module EUI
       log("view: #{e.message}")
       fail_session(400, e.message)
       @open = false
+    end
+
+    # 01 §7.3: an asset asked for on a pipe, sent down it in §6-sized
+    # chunks. One the store does not hold, or one larger than the client's
+    # `cap`, is a single `aborted` chunk — the `404` of a socket's fetch.
+    def serve_asset(hash, cap)
+      entry = @app&.assets&.fetch(Assets.hex(hash))
+      return send_frame(Proto::Frame.asset(hash, 0, Proto::ABORT, 'no such asset')) unless entry
+
+      bytes = entry.bytes
+      if bytes.bytesize > cap
+        return send_frame(Proto::Frame.asset(hash, 0, Proto::ABORT, "#{bytes.bytesize} bytes, past the #{cap} allowed"))
+      end
+
+      step = Proto::Limits::MAX_TRANSFER_CHUNK_BYTES
+      count = [(bytes.bytesize + step - 1) / step, 1].max
+      count.times do |seq|
+        flag = seq == count - 1 ? Proto::LAST : Proto::MORE
+        send_frame(Proto::Frame.asset(hash, seq, flag, bytes.byteslice(seq * step, step) || ''.b))
+      end
+      trace { "asset #{Assets.hex(hash)[0, 8]}: #{bytes.bytesize} bytes in #{count} chunk(s)" }
     end
 
     def send_batch(ops)

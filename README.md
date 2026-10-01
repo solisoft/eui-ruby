@@ -121,6 +121,7 @@ render, so the session ends with `Error 400` and the reason.
 |---|---|
 | `app.run(port: 5099)` | plain `ws://` on loopback, for development |
 | `app.run(host: "0.0.0.0", port: 443, tls: {cert:, key:})` | TLS 1.3, which is the protocol's floor |
+| `app.run_pipe` | no server at all: starts `eui --pipe` and speaks over its stdin and stdout |
 
 A release client refuses `ws://` outright; a debug one takes
 `EUI_ALLOW_INSECURE_LOOPBACK=1`. `EUI_TRACE=1` on the server prints every
@@ -143,6 +144,27 @@ The publisher key is generated on first use and kept: a client pins it
 against `app_id` on first run and refuses a different one later. It belongs
 to the application, not to a deployment, and it never belongs in a
 repository.
+
+### Over a pipe, with no server
+
+An application that runs on the person's own machine does not need a port.
+`app.run_pipe` starts the client itself — `eui --pipe`, version 0.8 or later
+(`EUI=/path/to/eui` to name another) — and runs one session of the first
+mounted component over the client's standard input and output, until the
+window closes (`spec/01-transport.md` §7):
+
+```ruby
+app = EUI::App.new(name: "Counter")
+app.mount("counter", Counter)
+app.run_pipe(allow: %w[clipboard.write])   # returns the client's exit status
+```
+
+There is no manifest, no TLS and no pin: the window is a child of this
+process, and `allow` is the whole of the grant, because a program the person
+started can already do everything a capability names. Assets travel in the
+session — the client asks with `Fetch`, this gem answers with `Asset`
+chunks — since there is no origin to fetch them from. `examples/pipe.rb` is
+the counter this way.
 
 ## What is here, and what is not
 
@@ -172,9 +194,11 @@ rake test
 ruby -Ilib -Itest -e 'Dir["test/**/*_test.rb"].each { |f| require File.expand_path(f) }'
 ```
 
-61 of them, and the ones worth reading are `test/proto_test.rb` — the spec's
+102 of them, and the ones worth reading are `test/proto_test.rb` — the spec's
 own §8 example, 150 bytes, byte for byte — and `test/session_test.rb`, which
 runs a real application on a real socket and counts the ops a click costs.
+`test/pipe_test.rb` does the same over a pair of pipes, serves an asset in
+`Asset` chunks, and starts a stand-in for `eui --pipe` through `run_pipe`.
 
 ## Against the other six
 

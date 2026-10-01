@@ -126,6 +126,10 @@ module EUI
       VIEWPORT = 0x0A
       UPLOAD   = 0x0B
       BLOB     = 0x0C
+      # A pipe's alone (01 §7.3): there is no origin to `GET` an asset from,
+      # so it is asked for and sent in the session. Refused on a socket.
+      FETCH    = 0x0D
+      ASSET    = 0x0E
 
       attr_reader :kind, :body
 
@@ -147,12 +151,17 @@ module EUI
         def viewport(v)  = new(VIEWPORT, v)
         def upload(t)    = new(UPLOAD, t)
         def blob(t)      = new(BLOB, t)
+        def fetch(hash, cap) = new(FETCH, [hash, cap])
+        def asset(hash, seq, flag, bytes) = new(ASSET, [hash, seq, flag, bytes])
       end
 
       # Decode a complete WebSocket message. Trailing bytes are an error:
       # a length that does not account for every byte of the message is how
       # one implementation's frame becomes another's smuggling channel.
-      def self.decode(message)
+      #
+      # `pipe: true` reads a frame off a pipe (01 §7), where `Fetch` and
+      # `Asset` also exist; anywhere else they are refused as unknown.
+      def self.decode(message, pipe: false)
         r = Reader.new(message)
         kind = r.u8
         len = r.varint
@@ -200,6 +209,20 @@ module EUI
           when VIEWPORT then viewport(Viewport.decode(p))
           when UPLOAD then upload(Transfer.decode(p))
           when BLOB then blob(Transfer.decode(p))
+          when FETCH
+            raise DecodeError, "unknown frame kind #{kind}" unless pipe
+
+            fetch(p.take(32), p.varint)
+          when ASSET
+            raise DecodeError, "unknown frame kind #{kind}" unless pipe
+
+            hash = p.take(32)
+            seq = p.varint32
+            flag = p.u8
+            raise DecodeError, "unknown chunk flag #{flag}" if flag > ABORT
+
+            max = flag == ABORT ? Limits::MAX_ABORT_REASON : Limits::MAX_TRANSFER_CHUNK_BYTES
+            asset(hash, seq, flag, p.bytes(max, 'asset chunk'))
           else raise DecodeError, "unknown frame kind #{kind}"
           end
         p.finish!
@@ -230,6 +253,8 @@ module EUI
         when RESYNC then nil
         when VIEWPORT then @body.encode(body)
         when UPLOAD, BLOB then @body.encode(body)
+        when FETCH then body.raw(@body[0]).varint(@body[1])
+        when ASSET then body.raw(@body[0]).varint(@body[1]).u8(@body[2]).bytes(@body[3])
         else raise Error, "cannot encode frame kind #{@kind}"
         end
 

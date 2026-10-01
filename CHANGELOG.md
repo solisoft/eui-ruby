@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- A session over a pipe (`spec/01-transport.md` §7): `App#run_pipe` and
+  `EUI::Pipe.run` start `eui --pipe` and run a session over its standard
+  input and output, with no server, port, TLS or manifest. The session
+  answers the client's `Fetch` with the asset in `Asset` chunks of 256 KiB,
+  refuses one past the client's `cap` or not in the store with a single
+  `aborted` chunk, and sends no `Ping`. `Proto::Frame` knows `Fetch` and
+  `Asset` (`0x0D`, `0x0E`) when told it is reading a pipe, and refuses both
+  otherwise. `examples/pipe.rb` is the counter this way.
+
 ## 0.1.0
 
 The first cut: enough to write an EUI application in Ruby and have the

@@ -15,6 +15,7 @@ require_relative 'eui/component'
 require_relative 'eui/websocket'
 require_relative 'eui/session'
 require_relative 'eui/server'
+require_relative 'eui/pipe'
 require_relative 'eui/app'
 
 # EUI in Ruby: an application interface delivered over HTTPS without HTML,
